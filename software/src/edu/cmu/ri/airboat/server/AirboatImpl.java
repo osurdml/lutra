@@ -2,12 +2,20 @@ package edu.cmu.ri.airboat.server;
 
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.location.Location;
+import android.location.LocationListener;
+import android.os.Bundle;
+import android.os.Vibrator;
 import android.preference.PreferenceManager;
 import android.util.JsonWriter;
 import android.util.Log;
+import android.widget.Toast;
 
 import com.google.code.microlog4android.LoggerFactory;
 
+import org.jscience.geography.coordinates.LatLong;
+import org.jscience.geography.coordinates.UTM;
+import org.jscience.geography.coordinates.crs.ReferenceEllipsoid;
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -19,6 +27,9 @@ import java.util.Iterator;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.atomic.AtomicBoolean;
+
+import javax.measure.unit.NonSI;
+import javax.measure.unit.SI;
 
 import edu.cmu.ri.crw.AbstractVehicleServer;
 import edu.cmu.ri.crw.VehicleController;
@@ -47,6 +58,7 @@ public class AirboatImpl extends AbstractVehicleServer {
 	public static final int UPDATE_INTERVAL_MS = 100;
 	public static final int NUM_SENSORS = 4;
 	public static final VehicleController DEFAULT_CONTROLLER = AirboatController.STOP.controller;
+//	public static final VehicleController DEFAULT_CONTROLLER = AirboatController.SHOOT_ON_MOVE;
 
     protected final SharedPreferences _prefs;
 
@@ -98,6 +110,7 @@ public class AirboatImpl extends AbstractVehicleServer {
 	 */
 	VehicleFilter filter = new SimpleFilter();
 
+
 	/**
 	 * Inertial velocity vector, containing a 6D angular velocity estimate: [rx,
 	 * ry, rz, rPhi, rPsi, rOmega]
@@ -113,9 +126,9 @@ public class AirboatImpl extends AbstractVehicleServer {
 	 * Hard-coded PID gains and thrust limits per vehicle type.
 	 */
 	double[] r_PID = {.2, 0, .3}; // Kp, Ki, Kd
-	double [] t_PID = {.5, .5, .5};
-    public static final double SAFE_DIFFERENTIAL_THRUST = 0.4;
-    public static final double SAFE_VECTORED_THRUST = 0.6;
+	double [] t_PID = {.7, .5, .5};
+    public static final double SAFE_DIFFERENTIAL_THRUST = 0.14;
+    public static final double SAFE_VECTORED_THRUST = 0.7;
 
     /**
      * Simple clipping function that restricts a value to a given range.
@@ -167,6 +180,7 @@ public class AirboatImpl extends AbstractVehicleServer {
 
         // Start a regular update function
 		_updateTimer.scheduleAtFixedRate(_updateTask, 0, UPDATE_INTERVAL_MS);
+
 	}
 
 	/**
@@ -299,23 +313,25 @@ public class AirboatImpl extends AbstractVehicleServer {
         // TODO: Get rid of this, it is a hack.
         // Special case to handle winch commands...
         else if (axis == 3) {
-            JSONObject command = new JSONObject();
-            JSONObject winchSettings = new JSONObject();
-
             logger.info("WINCH: " + Arrays.toString(k));
             // Call command to adjust winch
             synchronized (_usbWriter) {
-                try{
-                    //Set desired winch movement distance
-                    winchSettings.put("p", (float) Math.abs(k[0]));
-
-                    //Hardcoded velocity - get rid of this eventually
-                    winchSettings.put("v", 500*Math.signum(k[0]));
-                    command.put("s2", winchSettings);
-                    _usbWriter.println(command.toString());
+                StringWriter str = new StringWriter();
+                JsonWriter json = new JsonWriter(str);
+                try {
+                    json.beginObject();
+                    {
+                        json.name("s2").beginObject();
+                        {
+                            json.name("p").value(k[0]);
+                            json.name("v").value(k[1]);
+                        }
+                        json.endObject();
+                    }
+                    json.endObject();
+                    _usbWriter.println(str.toString());
                     _usbWriter.flush();
-                    logger.info("WINCH CMD: " + command.toString());
-                } catch (Exception e) {
+                } catch (IOException e) {
                     Log.w(logTag, "Unable to construct JSON string from winch command: " + Arrays.toString(k));
                 }
             }

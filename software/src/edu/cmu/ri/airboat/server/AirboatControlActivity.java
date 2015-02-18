@@ -262,6 +262,8 @@ public class AirboatControlActivity extends Activity {
 						double[] pidThrust = server.getGains(0);
 						// fix below statement; causes server to crash when shut down
 						double[] pidRudder = server.getGains(5);
+
+
 						
 						return new double[][] { pidThrust, pidRudder };
 					}
@@ -300,6 +302,8 @@ public class AirboatControlActivity extends Activity {
 						// Reschedule the next iteration of this update
 						_pidHandler.postDelayed(_pidCallback, PID_UPDATE_MS);
 					}
+
+
 				};
 			}
 		};
