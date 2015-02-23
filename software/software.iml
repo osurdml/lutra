@@ -79,7 +79,9 @@
     <orderEntry type="jdk" jdkName="Android API 20 Platform" jdkType="Android SDK" />
     <orderEntry type="sourceFolder" forTests="false" />
     <orderEntry type="library" exported="" name="microlog4android-1.0.0" level="project" />
+    <orderEntry type="library" exported="" name="madara" level="project" />
     <orderEntry type="library" exported="" name="jscience-4.3" level="project" />
+    <orderEntry type="library" exported="" name="gams" level="project" />
     <orderEntry type="library" exported="" name="crwlib_core" level="project" />
   </component>
 </module>
