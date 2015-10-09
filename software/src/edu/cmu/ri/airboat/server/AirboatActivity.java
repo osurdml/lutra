@@ -180,7 +180,7 @@ public class AirboatActivity extends Activity {
                 // Depending on whether the service is running, start or stop
                 if (!connectToggle.isChecked()) {
                     Log.i(logTag, "Starting background service.");
-                    startActivity(intent);
+                   startActivity(intent);
                 } else {
                     Log.i(logTag, "Stopping background service.");
                     stopService(new Intent(AirboatActivity.this, AirboatService.class));
@@ -272,6 +272,7 @@ public class AirboatActivity extends Activity {
 				connectToggle.setChecked(AirboatService.isRunning);
 				connectToggle.setEnabled(true);
 				handler.postDelayed(this, 300);
+				//Log.i(logTag,"Start Running");
 			}
 		}, 0);
 

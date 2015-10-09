@@ -48,6 +48,7 @@ public class LauncherActivity extends Activity {
         // (This is cleaned up when the launcher is destroyed, but we might need
         // it if we have to search for an accessory.)
         IntentFilter filter = new IntentFilter(ACTION_USB_PERMISSION);
+        //IntentFilter filter = new IntentFilter("");
         registerReceiver(usbReceiver_, filter);
         
         // Request permission for ANY connected devices.
@@ -64,6 +65,7 @@ public class LauncherActivity extends Activity {
             PendingIntent permissionIntent = PendingIntent.getBroadcast(this, 0, new Intent(
                     ACTION_USB_PERMISSION), 0);
             usbManager.requestPermission(usbAccessoryList[0], permissionIntent);
+            //usbManager.requestPermission(, permissionIntent);
         } else {
             Log.d(TAG, "Exiting vehicle service launcher: No devices found.");
             Toast.makeText(this, "No devices found.", Toast.LENGTH_SHORT).show();

@@ -381,7 +381,7 @@ public class AirboatImpl extends AbstractVehicleServer {
 			String name = keyIterator.next();
 			try {
 				JSONObject value = cmd.getJSONObject(name);
-				
+				logger.info("Value" + value + " "+ "Name" + name);
 				if (name.startsWith("m")) {
 					int motor = name.charAt(1) - 48;
 					logger.info("MOTOR" + motor + ": " + value.getDouble("v"));
@@ -391,26 +391,49 @@ public class AirboatImpl extends AbstractVehicleServer {
 					
 					// Hacks to send sensor information
 					if (value.has("type")) {
+
 						String type = value.getString("type");
+						//logger.info("Test1" + type);
 						if (type.equalsIgnoreCase("es2")) {
+							//logger.info("Test2");
 							SensorData reading = new SensorData();
+							String[] data = value.getString("data").trim().split(" ");
 							reading.channel = sensor;
                             reading.type = SensorType.TE;
+//							double temp = value.getDouble("data");
+//							String tem = value.getString("data");
+							//logger.info("Data"+ data[0]+" " + data[1]);
 							reading.data = new double[] {
-									value.getDouble("t"),
-									value.getDouble("c")
+									Double.parseDouble(data[0]),
+									Double.parseDouble(data[1])
 								};
+							//reading.data = new double[]{5.0,1.5};
 							sendSensor(sensor, reading);
-					    } else if (type.equalsIgnoreCase("hdf5")) {
+
+					    }else if (type.equalsIgnoreCase("atlas")) {
+							SensorData reading = new SensorData();
+							String[] data = value.getString("data").trim().split(",");
+							reading.channel = sensor;
+							reading.type = SensorType.UNKNOWN;
+//
+							logger.info("Data"+ data);
+							reading.data = new double[] {
+									Double.parseDouble(data[0]),
+									//Double.parseDouble(data[1])
+							};
+
+							sendSensor(sensor, reading);
+						}
+						else if (type.equalsIgnoreCase("hdf5")) {
                             String nmea = value.getString("nmea");
                             if (nmea.startsWith("$SDDBT")) {
                                 try {
-                                    double depth = Double.parseDouble(nmea.split(",")[3]);
+                                    double DO = Double.parseDouble(nmea.split(",")[3]);
 
                                     SensorData reading = new SensorData();
-                                    reading.type = SensorType.DEPTH;
+                                    reading.type = SensorType.UNKNOWN;
                                     reading.channel = sensor;
-                                    reading.data = new double[] { depth };
+                                    reading.data = new double[] { DO };
 
                                     sendSensor(sensor, reading);
                                 } catch(Exception e) {
