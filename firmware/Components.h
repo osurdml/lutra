@@ -3,12 +3,12 @@
 
 #include "Platypus.h"
 #include "RoboClaw.h"
+#include "RC.h"
 
 namespace platypus 
 {
   const int DEFAULT_BUFFER_SIZE = 128;
-
-  // ESCs //
+  
   class VaporPro : public Motor 
   {
   public:
@@ -37,14 +37,6 @@ namespace platypus
     void arm();
   };
 
-    class Dynamite : public Motor 
-  {
-  public:
-    Dynamite(int channel) : Motor(channel) {}
-    void arm();
-  };
-
-  // Sensors //
   class AnalogSensor : public Sensor 
   {
   public:
@@ -108,7 +100,6 @@ namespace platypus
     AtlasSensor(int channel);
     char *name();
     void onSerial();
-    void loop();
     
   private:
     char recv_buffer_[DEFAULT_BUFFER_SIZE];
@@ -146,6 +137,16 @@ namespace platypus
     uint32_t desired_position_;
     int32_t desired_velocity_;
     uint32_t desired_acceleration_;
+  };
+
+  class RC : public Sensor, public RC_Controller
+  {
+    public:
+      RC(int channel);
+      char *name();
+      
+      
+    
   };
 }
 

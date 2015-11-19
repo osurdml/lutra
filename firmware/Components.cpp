@@ -62,6 +62,8 @@ void Seaking::arm()
 {
   disable();
   delay(500);
+  disable();
+  delay(500);
 
   velocity(1.0);
   enable();
@@ -75,23 +77,13 @@ void Swordfish::arm()
 {
   disable();
   delay(500);
-  
+
   velocity(1.0);
   enable();
   delay(5000);
 
   velocity(0.0);
   delay(3000);
-}
-
-void Dynamite::arm()
-{
-    disable();
-    delay(500);
-
-    velocity(0.0);
-    enable();
-    delay(2000);
 }
 
 AnalogSensor::AnalogSensor(int channel)
@@ -153,7 +145,7 @@ ServoSensor::ServoSensor(int channel)
 
 ServoSensor::~ServoSensor()
 {
-  servo_.detach(); 
+  servo_.detach();
 }
 
 void ServoSensor::position(float position)
@@ -225,14 +217,14 @@ void ES2::loop()
   // Enable +12V output.
   pinMode(board::SENSOR[channel_].PWR_ENABLE, OUTPUT);
   digitalWrite(board::SENSOR[channel_].PWR_ENABLE, HIGH);
-  
+
   // Read response from sensor.
   delay(250);
-  
+
   // Turn off +12V output.
   pinMode(board::SENSOR[channel_].PWR_ENABLE, OUTPUT);
   digitalWrite(board::SENSOR[channel_].PWR_ENABLE, LOW);
-  
+
   // Wait a while for next sensor reading.
   delay(1750);
 }
@@ -241,18 +233,18 @@ void ES2::onSerial()
 {
   // TODO: verify checksum.
   char c = SERIAL_PORTS[channel_]->read();
-  if (c == '\0') { 
+  if (c == '\0') {
     return;
-  } 
+  }
   else if (c != '\r' && c != '\n' && recv_index_ < DEFAULT_BUFFER_SIZE)
   {
     recv_buffer_[recv_index_] = c;
     ++recv_index_;
   }
   else if (recv_index_ > 0)
-  { 
+  {
     recv_buffer_[recv_index_] = '\0';
-    
+
     if (recv_index_ > 6) // Only send data strings
     {
       char output_str[DEFAULT_BUFFER_SIZE+3];
@@ -278,44 +270,21 @@ AtlasSensor::AtlasSensor(int channel)
 : Sensor(channel), recv_index_(0)
 {
   // Start up serial port.
-  SERIAL_PORTS[channel_]->begin(115200);
+  SERIAL_PORTS[channel]->begin(9600);
 
-  //delay(1000);
+  // Tell the sensor to output continuously. Not needed...
+  //SERIAL_PORTS[channel_]->print("C\r");
+  SERIAL_PORTS[channel_]->print("l\r");
 
-  //SERIAL_PORTS[channel]->print("SERIAL,115200\r");
-  
-  // Tell the sensor to output continuously.
-  SERIAL_PORTS[channel_]->print("C,1\r");
+  // To be accurate, we should really be sending the sensor a temperature reading every now and then
+
+  //Uncomment this line to perform a calibration of the sensor in the atmosphere
+  //SERIAL_PORTS[channel_]->print("cal\r");
 }
 
 char* AtlasSensor::name()
 {
   return "atlas";
-}
-
-void AtlasSensor::loop(){  
-  
-  //SERIAL_PORTS[channel]->begin(9600);
-/*
-  delay(1000);
-  SERIAL_PORTS[channel_]->print("Factory\r");
-  delay(2000);
-  SERIAL_PORTS[channel_]->print("SERIAL,115200\r");
-
-  delay(2000);
-
-  SERIAL_PORTS[channel_]->end();
-
-  delay(1000);
-  SERIAL_PORTS[channel_]->begin(115200);
-
-  delay(1000);
-
-  //SERIAL_PORTS[channel]->print("SERIAL,115200\r");
-  
-  // Tell the sensor to output continuously.
-  SERIAL_PORTS[channel_]->print("C,1\r");
-  */
 }
 
 void AtlasSensor::onSerial()
@@ -327,9 +296,9 @@ void AtlasSensor::onSerial()
     ++recv_index_;
   }
   else if (recv_index_ > 0)
-  { 
+  {
     recv_buffer_[recv_index_] = '\0';
-    
+
     char output_str[DEFAULT_BUFFER_SIZE+3];
     snprintf(output_str, DEFAULT_BUFFER_SIZE,
       "{"
@@ -340,10 +309,10 @@ void AtlasSensor::onSerial()
       "}",
       channel_,
       recv_buffer_
-    );  
+    );
     send(output_str);
 
-    memset(recv_buffer_, 0, recv_index_);   
+    memset(recv_buffer_, 0, recv_index_);
     recv_index_ = 0;
   }
 }
@@ -361,7 +330,7 @@ Hds5::Hds5(int channel)
 
   // Enable RSxxx transmitter
   pinMode(board::SENSOR[channel].TX_ENABLE, OUTPUT);
-  digitalWrite(board::SENSOR[channel].TX_ENABLE, HIGH);
+  digitalWrite(board::SENSOR[channel].TX_ENABLE, LOW);
 
   // Enable RS485 termination resistor
   pinMode(board::SENSOR[channel].RS485_TE, OUTPUT);
@@ -369,10 +338,10 @@ Hds5::Hds5(int channel)
 
   // Select RS485 (deselect RS232)
   pinMode(board::SENSOR[channel].RS485_232, OUTPUT);
-  digitalWrite(board::SENSOR[channel].RS485_232, HIGH);
-  
+  digitalWrite(board::SENSOR[channel].RS485_232, LOW);
+
   // Start up serial port
-  SERIAL_PORTS[channel]->begin(4800);
+  SERIAL_PORTS[channel]->begin(9600);
 }
 
 char* Hds5::name()
@@ -389,9 +358,9 @@ void Hds5::onSerial()
     ++recv_index_;
   }
   else if (recv_index_ > 0)
-  { 
+  {
     recv_buffer_[recv_index_] = '\0';
-    
+
     char output_str[DEFAULT_BUFFER_SIZE+3];
     snprintf(output_str, DEFAULT_BUFFER_SIZE,
       "{"
@@ -402,9 +371,9 @@ void Hds5::onSerial()
       "}",
       channel_,
       recv_buffer_
-    );  
+    );
     send(output_str);
-    
+
     memset(recv_buffer_, 0, recv_index_);
     recv_index_ = 0;
   }
@@ -417,14 +386,14 @@ Winch::Winch(int channel, uint8_t address)
 , desired_position_(0)
 , desired_velocity_(0)
 , desired_acceleration_(12000)
-{  
+{
   // Enable +12V output.
   pinMode(board::SENSOR[channel].PWR_ENABLE, OUTPUT);
   digitalWrite(board::SENSOR[channel].PWR_ENABLE, HIGH);
-  
+
   // TODO: specifically enable e-stop line.
   // (Right now it is just pulled up by default.)
-  
+
   // Start up Roboclaw.
   roboclaw_.begin(38400);
 }
@@ -440,20 +409,20 @@ bool Winch::set(char* param, char* value)
   if (!strncmp("p", param, 2))
   {
     uint32_t pos = atol(value);
-    
+
     position(pos);
     return true;
   }
   else if (!strncmp("v", param, 2))
   {
     int32_t vel = atol(value);
-    
+
     velocity(vel);
-    return true;    
+    return true;
   }
   else if (!strncmp("reset", param, 6))
   {
-    
+
     reset();
     return true;
   }
@@ -480,10 +449,10 @@ void Winch::velocity(int32_t vel)
 {
   desired_velocity_ = vel;
   roboclaw_.SetM1VelocityPID(addr, Kd, Kp, Ki, Qpps);
-  roboclaw_.SpeedAccelDistanceM1(addr, 
-                                 desired_acceleration_, 
+  roboclaw_.SpeedAccelDistanceM1(addr,
+                                 desired_acceleration_,
                                  desired_velocity_,
-                                 desired_position_);     
+                                 desired_position_);
 }
 
 uint32_t Winch::encoder(bool *valid)
@@ -491,4 +460,28 @@ uint32_t Winch::encoder(bool *valid)
   uint32_t enc1 = roboclaw_.ReadEncM1(addr, NULL, valid);
   return enc1;
 }
+
+//Cosntruct RC "sensor" by calling RC_Controller
+RC::RC(int channel)
+: Sensor(channel),
+  RC_Controller(board::SENSOR[channel].GPIO[board::RX_NEG],
+                board::SENSOR[channel].GPIO[board::TX_NEG],
+                board::SENSOR[channel].GPIO[board::RX_POS])
+{
+    // Disable RSxxx receiver
+  pinMode(board::SENSOR[channel].RX_DISABLE, OUTPUT);
+  digitalWrite(board::SENSOR[channel].RX_DISABLE, HIGH);
+
+  // Disable TSxxx transmitter
+  pinMode(board::SENSOR[channel].TX_ENABLE, OUTPUT);
+  digitalWrite(board::SENSOR[channel].TX_ENABLE, LOW);
+
+
+}
+
+char * RC::name()
+{
+    return "RC_Controller";
+}
+
 

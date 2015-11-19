@@ -13,6 +13,7 @@
 // TODO: remove me
 #include "Board.h"
 
+
 // ADK USB Host configuration 
 char applicationName[] = "Platypus Server"; // the app on Android
 char accessoryName[] = "Platypus Control Board"; // your Arduino board
@@ -20,6 +21,9 @@ char companyName[] = "Platypus LLC";
 char versionNumber[] = "3.0";
 char serialNumber[] = "3";
 char url[] = "http://senseplatypus.com";
+
+//pRC Controller handle
+RC_Controller * pRC = NULL;
 
 // ADK USB Host
 USBHost Usb;
@@ -50,8 +54,38 @@ SystemState system_state = DISCONNECTED;
 const size_t RESPONSE_TIMEOUT_MS = 500;
 
 // Define the systems on this board
-// TODO: move this board.h?
 platypus::Led rgb_led;
+
+void enabledListener()
+{
+  
+  if(pRC != NULL)
+  {
+    pRC->update();
+  
+    if(pRC->isOverrideEnabled())
+    {
+      if(pRC->isCalibrateEnabled())
+      {
+        //Wait until motor update loop has been blocked to prevent
+        //errors in motor arming
+        while(!pRC->isMotorUpdateBlocked());
+        platypus::motors[0]->arm();
+        platypus::motors[1]->arm();
+      }
+      if(!platypus::motors[0]->enabled()) platypus::motors[0]->enable();
+      if(!platypus::motors[1]->enabled()) platypus::motors[1]->enable();
+
+      Serial.print(pRC->leftVelocity());
+      Serial.print(" , ");
+      Serial.println(pRC->rightVelocity());
+      delay(200);
+      platypus::motors[0]->velocity(pRC->leftVelocity());
+      platypus::motors[1]->velocity(pRC->rightVelocity());
+    }
+  }
+  yield();
+}
 
 /**
  * Wrapper for ADK send command that copies data to debug port.
@@ -72,6 +106,7 @@ void send(char *str)
   // Copy string to debugging console.
   Serial.print("-> ");
   Serial.print(str);
+  Serial.flush();
 }
 
 /**
@@ -193,8 +228,13 @@ void handleCommand(const char *buffer)
     platypus::Configurable *entry_object;
     
     // If it is a motor, it must take the form 'm1'.
+    // If an pRC  
     if (entry_name[0] == 'm')
     {
+      //pRC is attached and the override is set
+      //ignore any commands sent by server
+      if( pRC != NULL && pRC->isOverrideEnabled() )
+        return;
       size_t motor_idx = entry_name[1] - '0';
       if (motor_idx >= board::NUM_MOTORS || entry_name[2] != '\0') 
       {
@@ -264,6 +304,9 @@ void handleCommand(const char *buffer)
 
 void setup() 
 {
+
+  rgb_led.set(0,1,1);
+  delay(2000);
   // Latch power shutdown line high to keep board from turning off.
   pinMode(board::PWR_KILL, OUTPUT);
   digitalWrite(board::PWR_KILL, HIGH);
@@ -276,14 +319,26 @@ void setup()
   
   // TODO: replace this with smart hooks.
   // Initialize sensors
-  platypus::sensors[0] = new platypus::ServoSensor(0);
-  platypus::sensors[1] = new platypus::Hds5(1);
-  platypus::sensors[2] = new platypus::AtlasSensor(2);
-  platypus::sensors[3] = new platypus::ES2(3);
+
+  //Note!
+  //The arduino only has 4 serial ports (though they only appear to be using software serial??)
+  //Serial is being used as the debug port, so we've only got three to work with.
+  // Thus, Channel 0 Senor's serial port is defined as NULL in Platypus.cpp
+  //Since all of our sensors require Serial, we have to pick which 3 we want to use.  
+  //platypus::sensors[0] = new platypus::AtlasSensor(0); //PH 
+  platypus::sensors[1] = new platypus::ES2(1); //Temperature, Conductivity
+  platypus::sensors[2] = new platypus::AtlasSensor(2); //Dissolved Oxygen
+  platypus::sensors[3] = new platypus::Hds5(3); //Sonar, HDS7!
+   
+  //Store RC controller 
+  
+   pRC = (platypus::RC*)platypus::sensors[1];
+   Scheduler.startLoop(enabledListener);  
+   
   
   // Initialize motors
-  platypus::motors[0] = new platypus::Dynamite(0);
-  platypus::motors[1] = new platypus::Dynamite(1);
+  platypus::motors[0] = new platypus::HobbyKingBoat(0);
+  platypus::motors[1] = new platypus::HobbyKingBoat(1);
 
   // Make the ADK buffers into null terminated string.
   debug_buffer[INPUT_BUFFER_SIZE] = '\0';
@@ -309,6 +364,7 @@ void setup()
   // TODO: Investigate how this gets turned on in the first place
   rgb_led.set(0, 0, 0);
   delay(1000);
+ 
 }
 
 void loop() 
@@ -323,7 +379,7 @@ void loop()
   Usb.Task();
   
   // Report system as shutdown if not connected to USB.
-  if (!adk.isReady())
+  if (!adk.isReady() )
   {
     // If not connected to USB, we are 'DISCONNECTED'.
     if (system_state != DISCONNECTED)
@@ -395,6 +451,16 @@ void loop()
  */
 void motorUpdateLoop()
 {
+  //Break loop is RC is set to override control
+  if(pRC != NULL)
+  {
+    while(pRC->isOverrideEnabled())
+    { 
+      pRC->setMotorUpdateBlocked(true); 
+      yield();
+    }
+    pRC->setMotorUpdateBlocked(false);
+  }
   // Wait for a fixed time period.
   delay(100);
   
@@ -434,7 +500,7 @@ void motorUpdateLoop()
     break;
   case CONNECTED:
     // Decay all motors exponentially towards zero speed.
-    for (size_t motor_idx = 0; motor_idx < board::NUM_MOTORS; ++motor_idx) 
+    for (size_t motor_idx = 0; motor_idx < board::NUM_MOTORS; ++motor_idx)  
     {
       platypus::Motor* motor = platypus::motors[motor_idx];
       motor->velocity(motor->velocity() * 0.8);
