@@ -385,7 +385,7 @@ public class AirboatImpl extends AbstractVehicleServer {
 									value.getDouble("c")
 								};
 							sendSensor(sensor, reading);
-					    } else if (type.equalsIgnoreCase("hdf5")) {
+					    } else if (type.equalsIgnoreCase("hds5")) {
                             String nmea = value.getString("nmea");
                             if (nmea.startsWith("$SDDBT")) {
                                 try {
