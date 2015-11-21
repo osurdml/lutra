@@ -346,7 +346,7 @@ Hds5::Hds5(int channel)
 
 char* Hds5::name()
 {
-  return "hds5";
+  return "hds";
 }
 
 void Hds5::onSerial()
@@ -365,7 +365,7 @@ void Hds5::onSerial()
     snprintf(output_str, DEFAULT_BUFFER_SIZE,
       "{"
        "\"s%u\":{"
-         "\"type\":\"hds5\","
+         "\"type\":\"hds\","
          "\"nmea\":\"%s\""
        "}"
       "}",
